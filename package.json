@@ -8,7 +8,7 @@
     "dev:server": "wrangler dev",
     "build": "pnpm run build:client && pnpm run build:server",
     "build:client": "cross-env NODE_ENV=production webpack --config webpack.client.js",
-    "build:server": "cross-env NODE_ENV=production webpack --config webpack.server.js",
+    "build:server": "wrangler build --env production",
     "start": "node server/dist/index.js",
     "clean": "rimraf client/dist server/dist",
     "dev": "concurrently \"pnpm run dev:client\" \"wrangler dev\"",
