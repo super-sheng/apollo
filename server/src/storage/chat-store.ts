@@ -138,7 +138,19 @@ export class ChatStore {
   // 处理WebSocket连接
   async handleConnect (request: Request): Promise<Response> {
     console.log('处理WebSocket连接请求');
-    console.log('请求头:', Object.fromEntries(request.headers.entries()));
+    const headers = {};
+    request.headers.forEach((value, key) => {
+      // @ts-ignore
+      headers[key] = value;
+    });
+    console.log('请求头 (forEach):', headers);
+
+    // 单独打印关键头部
+    console.log('Upgrade头:', request.headers.get('Upgrade'));
+    console.log('Connection头:', request.headers.get('Connection'));
+    console.log('Sec-WebSocket-Key头:', request.headers.get('Sec-WebSocket-Key'));
+    console.log('Sec-WebSocket-Version头:', request.headers.get('Sec-WebSocket-Version'));
+
 
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket', { status: 400 });
