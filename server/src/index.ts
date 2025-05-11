@@ -29,6 +29,10 @@ const createGraphQLServer = (env: Env) => {
     plugins: [
       useLogger(),
     ],
+    subscriptions: {
+      path: '/connect', // 或其他适合的路径
+      keepAlive: 10000, // 10秒心跳间隔
+    },
     graphiql: {
       subscriptionsProtocol: 'SSE', // 使用Server-Sent Events
       defaultQuery: /* GraphQL */ `
