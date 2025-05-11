@@ -1,0 +1,19 @@
+name = "graphql-openai-worker"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"  # 使用最新的兼容性日期
+compatibility_flags = ["nodejs_compat"]
+
+# Durable Objects 声明
+[durable_objects]
+bindings = [
+  { name = "CHAT_STORE", class_name = "ChatStore" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatStore"]
+
+# 或者使用环境变量（更安全）
+[env.production]
+vars = { OPENAI_API_KEY = "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" }
+secrets = ["OPENAI_API_KEY"]
