@@ -1,4 +1,3 @@
-// src/services/pubsub.ts
 import { createPubSub } from 'graphql-yoga';
 import { Message, StreamChunk } from '../types';
 
