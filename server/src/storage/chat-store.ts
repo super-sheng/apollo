@@ -1,5 +1,3 @@
-// src/storage/chat-store.ts
-import { createWebSocketResponse } from '@server/utils/create-websocket-response';
 import { CHAT_CHANNEL, ChatChannel, PubSubEvent, STREAM_CHANNEL, StreamChannel } from '../services/pubsub';
 import { Conversation, Message, Env } from '../types';
 import { handleError } from '../utils/error-handler';
@@ -131,7 +129,6 @@ export class ChatStore {
       return new Response('Expected WebSocket', { status: 400 });
     }
 
-    // 使用类型断言来确保 WebSocketPair 具有正确的类型
     const pair = new WebSocketPair()
     const [client, server] = Object.values(pair)
 

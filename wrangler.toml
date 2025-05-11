@@ -1,7 +1,6 @@
 name = "graphql-openai-worker"
 main = "server/src/index.ts"
 compatibility_date = "2025-05-01"
-compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 # Durable Objects 声明
