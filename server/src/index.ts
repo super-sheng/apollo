@@ -29,12 +29,15 @@ const createGraphQLServer = (env: Env) => {
     plugins: [
       useLogger(),
     ],
+
+    // 配置订阅
     subscriptions: {
-      path: '/connect', // 或其他适合的路径
-      keepAlive: 10000, // 10秒心跳间隔
+      enabled: true,
+      protocol: ['WS', 'SSE'], // 支持两种协议
+      path: '/graphql' // 订阅端点路径
     },
     graphiql: {
-      subscriptionsProtocol: 'SSE', // 使用Server-Sent Events
+      subscriptionsProtocol: 'WS',
       defaultQuery: /* GraphQL */ `
         # 欢迎使用GraphQL聊天API
         # 试试这些操作：
