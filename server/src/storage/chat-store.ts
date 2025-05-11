@@ -54,7 +54,7 @@ export class ChatStore {
       };
 
       // 发送到主 Worker 的 pubsub-event 端点
-      await fetch(new URL(`/pubsub-event`).toString(), {
+      await fetch(`/pubsub-event`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -130,8 +130,8 @@ export class ChatStore {
     }
 
     // 使用类型断言来确保 WebSocketPair 具有正确的类型
-    const pair = new WebSocketPair() as unknown as [ServerWebSocket, ServerWebSocket];
-    const [client, server] = pair;
+    const pair = new WebSocketPair()
+    const [client, server] = Object.values(pair) as unknown as [ServerWebSocket, ServerWebSocket];
 
     server.accept();
 
