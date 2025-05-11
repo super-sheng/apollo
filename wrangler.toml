@@ -26,5 +26,3 @@ vars = { ENVIRONMENT = "development" }
 # 生产环境配置
 [env.production]
 vars = { ENVIRONMENT = "production" }
-# 注意: 对于生产环境，使用 secrets 而不是直接在配置文件中设置 API 密钥
-# 使用命令 `wrangler secret put OPENAI_API_KEY` 来设置

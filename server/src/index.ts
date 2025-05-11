@@ -13,7 +13,7 @@ const getChatStore = (env: Env): DurableObjectStub => {
 
 // 创建Yoga实例
 const createGraphQLServer = (env: Env) => {
-  const pubSub = getPubSub();
+  // const pubSub = getPubSub();
 
   return createYoga<Env>({
     // @ts-ignore
@@ -23,10 +23,10 @@ const createGraphQLServer = (env: Env) => {
       {
         // 自定义插件，注入上下文
         // @ts-ignore
-        onContextBuilding ({ setContextValue }) {
-          setContextValue('pubSub', pubSub);
-          setContextValue('getChatStore', getChatStore);
-          setContextValue('env', env);
+        onContextBuilding ({ }) {
+          // setContextValue('pubSub', pubSub);
+          // setContextValue('getChatStore', getChatStore);
+          // setContextValue('env', env);
         }
       }
     ],
