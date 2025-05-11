@@ -1,4 +1,3 @@
-// src/index.ts
 import { createYoga, useLogger } from 'graphql-yoga';
 import { schema } from './schema';
 import { ChatStore } from './storage/chat-store';

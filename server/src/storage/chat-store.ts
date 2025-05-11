@@ -5,7 +5,7 @@ import { Conversation, Message, Env } from '../types';
 import { handleError } from '../utils/error-handler';
 import { logger } from '../utils/logger';
 // 导入最新的 Cloudflare Workers 类型
-import { DurableObjectState, DurableObjectStorage, WebSocketPair } from '@cloudflare/workers-types';
+import { DurableObjectState, DurableObjectStorage } from '@cloudflare/workers-types';
 export interface ServerWebSocket extends WebSocket {
   accept (): void;
 }

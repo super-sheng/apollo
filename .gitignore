@@ -5,6 +5,8 @@ node_modules
 # Production
 client/dist
 server/dist
+.wrangler/
+server/worker
 
 # Logs
 logs
