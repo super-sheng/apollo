@@ -5,6 +5,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const common = require('./webpack.common');
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -38,19 +39,13 @@ module.exports = merge(common, {
               parser: {
                 syntax: 'typescript',
                 tsx: true,
-                decorators: false,
-                dynamicImport: true
               },
               transform: {
                 react: {
                   runtime: 'automatic',
-                  development: !isProduction,
-                  refresh: !isProduction
-                }
-              },
-              target: 'es2015'
-            },
-            minify: isProduction
+                },
+              }
+            }
           }
         }
       },
@@ -98,9 +93,10 @@ module.exports = merge(common, {
       template: './client/public/index.html',
       favicon: './client/public/favicon.ico',
       inject: true,
-      minify: isProduction
     }),
-    
+    ...(process.env.NODE_ENV === 'development' 
+      ? [new ReactRefreshWebpackPlugin()] 
+      : []),
     ...(isProduction ? [
       new MiniCssExtractPlugin({
         filename: 'css/[name].[contenthash:8].css',
@@ -148,10 +144,8 @@ module.exports = merge(common, {
     static: {
       directory: path.join(__dirname, 'client/public'),
     },
-    historyApiFallback: true,
     port: 3000,
     hot: true,
-    open: true,
     compress: true,
     client: {
       overlay: {

@@ -1,4 +1,5 @@
 const path = require('path');
+const Dotenv = require('dotenv-webpack');
 
 module.exports = {
   resolve: {
@@ -33,7 +34,16 @@ module.exports = {
       }
     ]
   },
-  
+  plugins: [
+    new Dotenv({
+      path: './.env',              // 默认路径，可以指定其他路径
+      safe: true,                  // 加载 .env.example 确保所有变量都存在
+      allowEmptyValues: true,      // 允许空值
+      silent: true,                // 隐藏任何警告
+      defaults: false,             // 在 .env 找不到变量时使用 .env.defaults
+      prefix: 'process.env.'       // 变量前缀，默认为 process.env.
+    })
+  ],
   stats: {
     modules: false,
     children: false,

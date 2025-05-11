@@ -23,13 +23,13 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 
 // HTTP 链接，用于查询和变更
 const httpLink = new HttpLink({
-  uri: 'http://localhost:4000/graphql',
+  uri: 'proc',
 });
 
 // WebSocket 链接，用于订阅
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: 'ws://localhost:4000/graphql',
+    url: process.env.REACT_APP_WS_URL as string,
     connectionParams: {
       // 可以在这里添加认证信息
     },
