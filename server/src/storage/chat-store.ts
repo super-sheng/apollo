@@ -54,7 +54,7 @@ export class ChatStore {
       };
 
       // 发送到主 Worker 的 pubsub-event 端点
-      const workerUrl = this.env.WORKER_URL || 'https://graphql-openai-worker.max-capricorn1209.workers.dev/graphql';
+      const workerUrl = 'https://graphql-openai-worker.max-capricorn1209.workers.dev';
 
       await fetch(`${workerUrl}/pubsub-event`, {
         method: 'POST',
@@ -133,15 +133,15 @@ export class ChatStore {
 
     // 使用类型断言来确保 WebSocketPair 具有正确的类型
     const pair = new WebSocketPair()
-    const [client, server] = Object.values(pair) as unknown as [ServerWebSocket, ServerWebSocket];
+    const [client, server] = Object.values(pair)
 
-    server.accept();
+    server!.accept();
 
     const sessionId = crypto.randomUUID();
-    this.sessions.set(sessionId, { webSocket: server });
+    this.sessions.set(sessionId, { webSocket: server! });
 
     // 设置消息处理程序
-    server.addEventListener('message', async event => {
+    server!.addEventListener('message', async event => {
       try {
         console.log('收到WebSocket消息:', event.data);
       } catch (error) {
@@ -150,16 +150,19 @@ export class ChatStore {
     });
 
     // 设置关闭处理程序
-    server.addEventListener('close', () => {
+    server!.addEventListener('close', () => {
       this.sessions.delete(sessionId);
     });
 
     // 设置错误处理程序
-    server.addEventListener('error', () => {
+    server!.addEventListener('error', () => {
       this.sessions.delete(sessionId);
     });
 
-    return createWebSocketResponse(client);
+    return new Response(null, {
+      status: 101,
+      webSocket: client!
+    });
   }
 
   // 处理创建对话
