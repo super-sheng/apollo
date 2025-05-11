@@ -1,1 +1,0 @@
-This folder contains the built output assets for the worker "graphql-openai-worker-production" generated at 2025-05-11T15:28:13.441Z.
