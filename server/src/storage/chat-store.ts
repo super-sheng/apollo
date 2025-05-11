@@ -54,7 +54,7 @@ export class ChatStore {
       };
 
       // 发送到主 Worker 的 pubsub-event 端点
-      await fetch(new URL('/pubsub-event', self.location.href).toString(), {
+      await fetch(new URL(`/pubsub-event`).toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
