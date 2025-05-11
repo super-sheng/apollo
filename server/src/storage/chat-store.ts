@@ -1,4 +1,4 @@
-import { CHAT_CHANNEL, ChatChannel, PubSubEvent, STREAM_CHANNEL, StreamChannel } from '../services/pubsub';
+import { CHAT_CHANNEL, ChatChannel, PubSubEvent } from '../services/pubsub';
 import { Conversation, Message, Env } from '../types';
 import { handleError } from '../utils/error-handler';
 import { logger } from '../utils/logger';
@@ -74,6 +74,18 @@ export class ChatStore {
       // 记录请求日志
       logger.debug(`ChatStore收到请求: ${request.method} ${path}`);
 
+      // 处理 CORS 预检请求
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upgrade, Connection',
+            'Access-Control-Max-Age': '86400'
+          }
+        });
+      }
+
       // 会话WebSocket连接端点
       if (path === '/connect') {
         return this.handleConnect(request);
@@ -125,41 +137,103 @@ export class ChatStore {
 
   // 处理WebSocket连接
   async handleConnect (request: Request): Promise<Response> {
+    console.log('处理WebSocket连接请求');
+    console.log('请求头:', Object.fromEntries(request.headers.entries()));
+
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket', { status: 400 });
     }
 
-    const pair = new WebSocketPair()
-    const [client, server] = Object.values(pair)
+    try {
+      const pair = new WebSocketPair();
+      const client = pair[0];
+      const server = pair[1];
 
-    server!.accept();
+      console.log('WebSocketPair创建成功');
 
-    const sessionId = crypto.randomUUID();
-    this.sessions.set(sessionId, { webSocket: server! });
+      server.accept();
+      console.log('WebSocket连接已接受');
 
-    // 设置消息处理程序
-    server!.addEventListener('message', async event => {
-      try {
-        console.log('收到WebSocket消息:', event.data);
-      } catch (error) {
-        console.error('处理WebSocket消息时出错:', error);
-      }
-    });
+      // 发送欢迎消息确认连接
+      server.send(JSON.stringify({
+        type: 'welcome',
+        message: 'WebSocket连接已建立',
+        timestamp: new Date().toISOString()
+      }));
 
-    // 设置关闭处理程序
-    server!.addEventListener('close', () => {
-      this.sessions.delete(sessionId);
-    });
+      const sessionId = crypto.randomUUID();
+      this.sessions.set(sessionId, { webSocket: server });
+      console.log(`WebSocket会话已创建: ${sessionId}`);
 
-    // 设置错误处理程序
-    server!.addEventListener('error', () => {
-      this.sessions.delete(sessionId);
-    });
+      // 添加心跳机制
+      const heartbeatInterval = setInterval(() => {
+        try {
+          if (this.sessions.has(sessionId)) {
+            server.send(JSON.stringify({
+              type: 'heartbeat',
+              timestamp: new Date().toISOString()
+            }));
+            console.log(`发送心跳到会话: ${sessionId}`);
+          } else {
+            clearInterval(heartbeatInterval);
+          }
+        } catch (error) {
+          console.error(`发送心跳失败: ${error}`);
+          clearInterval(heartbeatInterval);
+          this.sessions.delete(sessionId);
+        }
+      }, 30000); // 每30秒发送一次心跳
 
-    return new Response(null, {
-      status: 101,
-      webSocket: client!
-    });
+      // 详细的消息处理
+      server.addEventListener('message', async event => {
+        try {
+          console.log(`收到WebSocket消息(${sessionId}):`, event.data);
+
+          // 尝试解析JSON消息
+          try {
+            const data = JSON.parse(event.data);
+            // 处理特定消息类型
+            if (data.type === 'ping') {
+              server.send(JSON.stringify({
+                type: 'pong',
+                timestamp: new Date().toISOString()
+              }));
+            }
+          } catch (parseError) {
+            console.log('消息不是有效的JSON');
+          }
+        } catch (error) {
+          console.error(`处理WebSocket消息时出错(${sessionId}):`, error);
+        }
+      });
+
+      // 更好的关闭处理
+      server.addEventListener('close', event => {
+        console.log(`WebSocket连接关闭(${sessionId}): 代码=${event.code}, 原因="${event.reason || 'None'}"`);
+        clearInterval(heartbeatInterval);
+        this.sessions.delete(sessionId);
+      });
+
+      // 更好的错误处理
+      server.addEventListener('error', error => {
+        console.error(`WebSocket错误(${sessionId}):`, error);
+        clearInterval(heartbeatInterval);
+        this.sessions.delete(sessionId);
+      });
+
+      console.log('返回WebSocket响应');
+      return new Response(null, {
+        status: 101,
+        webSocket: client,
+        headers: {
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    } catch (error) {
+      console.error('创建WebSocket失败:', error);
+      // @ts-ignore
+      return new Response(`WebSocket初始化失败: ${error.message}`, { status: 500 });
+    }
   }
 
   // 处理创建对话
