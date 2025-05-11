@@ -11,4 +11,5 @@ export interface Env {
   CHAT_STORE: DurableObjectNamespace;
   OPENAI_API_KEY: string;
   ENVIRONMENT?: string;
+  WORKER_URL: string;
 }

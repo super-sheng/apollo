@@ -54,7 +54,9 @@ export class ChatStore {
       };
 
       // 发送到主 Worker 的 pubsub-event 端点
-      await fetch(`/pubsub-event`, {
+      const workerUrl = this.env.WORKER_URL || 'https://graphql-openai-worker.max-capricorn1209.workers.dev/graphql';
+
+      await fetch(`${workerUrl}/pubsub-event`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
