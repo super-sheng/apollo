@@ -5,13 +5,13 @@ import { createClient } from 'graphql-ws';
 
 // HTTP连接到GraphQL API
 const httpLink = new HttpLink({
-  uri: '/api/graphql',
+  uri: process.env.REACT_APP_API_URL,
 });
 
 // WebSocket连接用于订阅
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: 'wss://your-cloudflare-worker.workers.dev/graphql',
+    url: process.env.REACT_APP_WS_URL as string,
   })
 );
 
