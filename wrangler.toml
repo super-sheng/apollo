@@ -2,7 +2,7 @@ name = "server-worker"
 main = "server/src/index.ts"
 compatibility_date = "2025-05-01"
 workers_dev = true
-compatibility_flags = ["nodejs_compat"]  # 添加Node.js兼容性标志
+compatibility_flags = ["nodejs_compat", "durable_object_sqlite_storage"] 
 
 # Durable Objects 声明
 [[durable_objects.bindings]]
