@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * chat-session-sqlite.ts
  * 
@@ -10,6 +9,8 @@ import { startServerAndCreateCloudflareWorkersHandler } from '@as-integrations/c
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
+import { DurableObject } from "cloudflare:workers";
+
 // GraphQL 类型定义
 const typeDefs = `#graphql
   type Message {
@@ -43,9 +44,9 @@ const typeDefs = `#graphql
  * 聊天会话Durable Object类
  * 使用SQLite作为存储后端
  */
-export class ChatSessionDO {
+export class ChatSessionDO extends DurableObject<Env> {
   state: DurableObjectState;
-  env: Env;
+  override env: Env;
   webSockets: Map<string, WebSocket>;
   openai: any;
   apolloHandler: any;
@@ -53,6 +54,7 @@ export class ChatSessionDO {
   db: SqlStorage;
 
   constructor(state: DurableObjectState, env: Env) {
+    super(state, env);
     this.state = state;
     this.env = env;
     this.webSockets = new Map();
@@ -104,7 +106,7 @@ export class ChatSessionDO {
   /**
    * 处理HTTP请求
    */
-  async fetch (request: Request) {
+  override async fetch (request: Request) {
     // 从URL获取会话ID
     const url = new URL(request.url);
     this.sessionId = url.searchParams.get('sessionId') || 'default';
@@ -132,21 +134,14 @@ export class ChatSessionDO {
   async ensureSessionExists () {
     try {
       // 查询会话是否存在
-      const session = await this.db.batch(
-        [{ sql: `SELECT id FROM sessions WHERE id = ?`, args: [this.sessionId] }],
-      );
+      const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId);
 
       if (!session) {
         // 创建新会话
-        await this.db.batch(
-          [{ sql: `INSERT INTO sessions (id, last_active) VALUES (?, ?)`, args: [this.sessionId] }],
-        );
+        await this.db.exec(`INSERT INTO sessions (id, last_active) VALUES (?, ?)`, this.sessionId);
       } else {
         // 更新最后活动时间
-        await this.db.batch([{
-          sql: `UPDATE sessions SET last_active = ? WHERE id = ?`,
-          args: [Date.now(), this.sessionId]
-        }]);
+        await this.db.exec(`UPDATE sessions SET last_active = ? WHERE id = ?`, Date.now(), this.sessionId);
       }
     } catch (error) {
       console.error('Error ensuring session exists:', error);
@@ -319,14 +314,11 @@ export class ChatSessionDO {
   async getSessionMessages () {
     try {
       // 查询此会话的所有消息
-      const result = await this.db.batch([{
-        sql: `SELECT id, content, sender, timestamp 
+      const result = await this.db.exec(`SELECT id, content, sender, timestamp 
          FROM messages 
          WHERE session_id = ? 
-         ORDER BY timestamp ASC`,
-        args: [this.sessionId]
-      }]);
-      return result.results || [];
+         ORDER BY timestamp ASC`, this.sessionId);
+      return result.toArray() || [];
     } catch (error) {
       console.error('Error fetching session messages:', error);
       return [];
@@ -340,14 +332,11 @@ export class ChatSessionDO {
   async saveMessage (message) {
     try {
       // 插入消息记录 更新会话最后活动时间
-      await this.db.batch([{
-        sql: `INSERT INTO messages (id, session_id, content, sender, timestamp) 
-         VALUES (?, ?, ?, ?, ?)`,
-        args: [message.id, this.sessionId, message.content, message.sender, message.timestamp],
-      }, {
-        sql: `UPDATE sessions SET last_active = ? WHERE id = ?`,
-        args: [Date.now(), this.sessionId]
-      },]);
+      await this.db.exec(`INSERT INTO messages (id, session_id, content, sender, timestamp) 
+         VALUES (?, ?, ?, ?, ?)`, message.id, this.sessionId, message.content, message.sender, message.timestam);
+
+      await this.db.exec(`UPDATE sessions SET last_active = ? WHERE id = ?`, Date.now(), this.sessionId)
+
       return true;
     } catch (error) {
       console.error('Error saving message:', error);
@@ -425,25 +414,16 @@ export class ChatSessionDO {
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
 
       // 查询过期会话
-      const result = await this.db.batch([{
-        sql: `SELECT id FROM sessions WHERE last_active < ?`,
-        ages: [thirtyDaysAgo]
-      }]);
+      const result = await this.db.exec(`SELECT id FROM sessions WHERE last_active < ?`, thirtyDaysAgo);
 
-      const expiredSessions = result.results || [];
+      const expiredSessions = result.toArray() || [];
       let cleanedCount = 0;
 
       // 删除每个过期会话及其消息
       for (const session of expiredSessions) {
-        await this.db.batch([{
-          sql: `DELETE FROM messages WHERE session_id = ?`,
-          args: [session.id]
-        }]);
+        await this.db.exec(`DELETE FROM messages WHERE session_id = ?`, session['id']);
 
-        await this.db.batch([{
-          sql: `DELETE FROM sessions WHERE id = ?`,
-          args: [session.id]
-        }]);
+        await this.db.exec(`DELETE FROM sessions WHERE id = ?`, session['id']);
 
         cleanedCount++;
       }
