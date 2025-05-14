@@ -1,0 +1,97 @@
+.chat-message {
+  display: flex;
+  margin-bottom: var(--space-md);
+  animation: fadeIn 0.3s ease;
+}
+
+.chat-message.user-message {
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  flex-shrink: 0;
+  margin: 0 var(--space-sm);
+  align-self: flex-start;
+}
+
+.ai-avatar,
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--font-sm);
+}
+
+.ai-avatar {
+  background: var(--gradient-primary);
+  color: var(--text-primary);
+}
+
+.user-avatar {
+  background: var(--gradient-dark);
+  color: var(--text-primary);
+}
+
+.message-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.message-bubble {
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  position: relative;
+}
+
+.ai-message .message-bubble {
+  background-color: var(--bg-tertiary);
+  border-top-left-radius: 2px;
+}
+
+.user-message .message-bubble {
+  background: linear-gradient(135deg, rgba(98, 70, 234, 0.15), rgba(229, 49, 112, 0.15));
+  border-top-right-radius: 2px;
+}
+
+.message-text {
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.message-meta {
+  display: flex;
+  margin-top: var(--space-xs);
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.ai-message .message-meta {
+  margin-left: var(--space-sm);
+}
+
+.user-message .message-meta {
+  margin-right: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.message-time {
+  margin-right: var(--space-sm);
+}
+
+/* 消息展示动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

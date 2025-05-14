@@ -41,7 +41,40 @@ module.exports = merge(common, {
     __dirname: false,
     __filename: false,
   },
-  
+   resolve: {
+    extensions: ['.ts', '.tsx', '.js'],
+    fallback: {
+      "crypto": false,
+      "stream": false,
+      "util": false,
+      "buffer": false,
+      "fs": false,
+      "path": false,
+      "os": false,  // 添加os模块的fallback
+      "http": false,
+      "https": false,
+      "zlib": false,
+      "net": false,
+      "tls": false,
+      "child_process": false,
+    }
+  },
+   
+  externals: [
+    { 'node:crypto': 'commonjs crypto' },
+    { 'node:util': 'commonjs util' },
+    { 'node:stream': 'commonjs stream' },
+    { 'node:buffer': 'commonjs buffer' },
+    { 'node:fs': 'commonjs fs' },
+    { 'node:path': 'commonjs path' },
+    { 'node:os': 'commonjs os' },
+    { 'node:http': 'commonjs http' },
+    { 'node:https': 'commonjs https' },
+    { 'node:net': 'commonjs net' },
+    { 'node:tls': 'commonjs tls' },
+    { 'node:zlib': 'commonjs zlib' },
+    { 'node:child_process': 'commonjs child_process' },
+  ],
   optimization: {
     minimize: isProduction
   }

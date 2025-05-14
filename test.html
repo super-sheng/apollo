@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>WebSocket测试</title>
+</head>
+
+<body>
+  <h1>WebSocket测试</h1>
+  <div id="status">未连接</div>
+  <div id="messages"></div>
+
+  <script>
+    // 显示消息的函数
+    function addMessage (text) {
+      const messagesEl = document.getElementById('messages');
+      const messageEl = document.createElement('div');
+      messageEl.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+      messagesEl.appendChild(messageEl);
+    }
+
+    // 更新状态的函数
+    function updateStatus (text, color) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = text;
+      statusEl.style.color = color || 'black';
+    }
+
+    // 连接WebSocket
+    try {
+      updateStatus('正在连接...', 'blue');
+      addMessage('开始连接WebSocket...');
+
+      const ws = new WebSocket('wss://graphql-openai-worker.max-capricorn1209.workers.dev/connect');
+
+      // 连接打开
+      ws.onopen = () => {
+        updateStatus('已连接', 'green');
+        addMessage('WebSocket连接已建立');
+      };
+
+      // 接收消息
+      ws.onmessage = (event) => {
+        addMessage(`收到消息: ${event.data}`);
+      };
+
+      // 连接关闭
+      ws.onclose = (event) => {
+        updateStatus('已断开', 'red');
+        addMessage(`连接关闭: 代码=${event.code}, 原因="${event.reason || 'None'}"`);
+      };
+
+      // 连接错误
+      ws.onerror = (error) => {
+        updateStatus('连接错误', 'red');
+        addMessage('WebSocket错误');
+        console.error('WebSocket错误:', error);
+      };
+
+      // 保存WebSocket实例以供控制台调试
+      window.testWs = ws;
+      addMessage('可以通过window.testWs访问WebSocket实例');
+    } catch (error) {
+      updateStatus('连接失败', 'red');
+      addMessage(`创建WebSocket失败: ${error.message}`);
+    }
+  </script>
+</body>
+
+</html>

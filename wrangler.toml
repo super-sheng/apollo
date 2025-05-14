@@ -2,16 +2,16 @@ name = "graphql-openai-worker"
 main = "server/src/index.ts"
 compatibility_date = "2025-05-01"
 workers_dev = true
+compatibility_flags = ["nodejs_compat"]  # 添加Node.js兼容性标志
 
 # Durable Objects 声明
-[durable_objects]
-bindings = [
-  { name = "CHAT_STORE", class_name = "ChatStore" }
-]
+[[durable_objects.bindings]]
+name = "CHAT_SESSIONS"
+class_name = "ChatSessionDO"
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["ChatStore"]
+new_classes = ["ChatSessionDO"]
 
 [observability.logs]
 enabled = true
@@ -19,11 +19,3 @@ enabled = true
 # 环境变量
 [vars]
 OPENAI_API_KEY = ""
-
-# 开发环境配置
-[env.dev]
-vars = { ENVIRONMENT = "development" }
-
-# 生产环境配置
-[env.production]
-vars = { ENVIRONMENT = "production" }

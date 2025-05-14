@@ -1,36 +1,52 @@
 import { gql } from '@apollo/client';
 
-export const GET_CONVERSATIONS = gql`
-  query GetConversations {
-    conversations {
+// 获取聊天会话
+export const GET_CHAT_SESSION = gql`
+  query GetChatSession($id: ID!) {
+    chatSession(id: $id) {
       id
-      title
-      createdAt
-      updatedAt
+      messages {
+        id
+        content
+        sender
+        timestamp
+      }
     }
   }
 `;
 
-export const GET_CONVERSATION = gql`
-  query GetConversation($id: ID!) {
-    conversation(id: $id) {
+// 发送用户消息
+export const SEND_MESSAGE = gql`
+  mutation SendMessage($sessionId: ID!, $content: String!) {
+    sendMessage(sessionId: $sessionId, content: $content) {
       id
-      title
-      createdAt
-      updatedAt
+      content
+      sender
+      timestamp
     }
   }
 `;
 
-export const GET_MESSAGES = gql`
-  query GetMessages($conversationId: ID!) {
-    messages(conversationId: $conversationId) {
+// 发送消息并获取AI回复
+export const SEND_AI_MESSAGE = gql`
+  mutation SendAIMessage($sessionId: ID!, $content: String!) {
+    sendAIMessage(sessionId: $sessionId, content: $content) {
       id
-      text
-      role
-      conversationId
-      createdAt
-      updatedAt
+      content
+      sender
+      timestamp
+    }
+  }
+`;
+
+// 订阅新消息
+export const MESSAGE_ADDED_SUBSCRIPTION = gql`
+  subscription OnMessageAdded($sessionId: ID!) {
+    messageAdded(sessionId: $sessionId) {
+      id
+      content
+      sender
+      timestamp
     }
   }
 `;
