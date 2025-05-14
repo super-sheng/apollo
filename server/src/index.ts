@@ -17,10 +17,16 @@ export default {
           headers: corsHeaders(),
         });
       }
-
-      console.log('url.searchParams.get.sessionId', url.searchParams.get('sessionId'));
       // 获取会话ID参数，如果没有则使用默认值
-      const sessionId = url.searchParams.get('id') || getSessionIdFromRequest(request) || 'default';
+      let sessionId = 'default'
+
+      const body = await request.clone().json();
+      // @ts-ignore
+      if (body?.variables?.id) {
+        // @ts-ignore
+        sessionId = body.variables.id;
+        console.log(`从GraphQL变量获取会话ID: ${sessionId}`);
+      }
       console.log('sessionId: ', sessionId);
 
       // 基于会话ID获取Durable Object ID

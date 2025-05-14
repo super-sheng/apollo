@@ -110,6 +110,7 @@ export class ChatSessionDO extends DurableObject<Env> {
     // 从URL获取会话ID
     const url = new URL(request.url);
     this.sessionId = url.searchParams.get('id') || 'default';
+    console.log('this.sessionId: ', this.sessionId);
 
     // 确保会话存在
     await this.ensureSessionExists();
