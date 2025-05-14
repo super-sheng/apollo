@@ -135,7 +135,7 @@ export class ChatSessionDO extends DurableObject<Env> {
     try {
       // 查询会话是否存在
       const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId);
-      console.log('session: ', session);
+      console.log('session: ', JSON.stringify(session));
 
       if (!session) {
         // 创建新会话

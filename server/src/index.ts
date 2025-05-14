@@ -18,8 +18,9 @@ export default {
         });
       }
 
+      console.log('url.searchParams.get.sessionId', url.searchParams.get('sessionId'));
       // 获取会话ID参数，如果没有则使用默认值
-      const sessionId = url.searchParams.get('sessionId') || getSessionIdFromRequest(request) || 'default';
+      const sessionId = url.searchParams.get('id') || getSessionIdFromRequest(request) || 'default';
 
       // 基于会话ID获取Durable Object ID
       const id = env.CHAT_SESSIONS.idFromName(sessionId);
