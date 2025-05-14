@@ -1,114 +1,210 @@
-import OpenAI from "openai";
-import { v4 as uuidv4 } from 'uuid';
-import { makeExecutableSchema } from '@graphql-tools/schema';
+// @ts-nocheck
+/**
+ * chat-session-sqlite.ts
+ * 
+ * 使用SQLite作为存储后端的ChatSessionDO实现
+ */
+
+import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateCloudflareWorkersHandler } from '@as-integrations/cloudflare-workers';
-import { typeDefs } from "@server/graphql/schema";
-import { ApolloServer } from "@apollo/server";
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import { v4 as uuidv4 } from 'uuid';
+import OpenAI from 'openai';
+// GraphQL 类型定义
+const typeDefs = `#graphql
+  type Message {
+    id: ID!
+    content: String!
+    sender: String!
+    timestamp: String!
+  }
 
-export interface Env {
-  OPENAI_API_KEY: string;
-  CHAT_SESSIONS: DurableObjectNamespace;
-}
-interface DurableObjectNamespace {
-  idFromName (name: string): DurableObjectId;
-  get (id: DurableObjectId): DurableObjectStub;
-}
+  type ChatSession {
+    id: ID!
+    messages: [Message!]!
+  }
 
-interface DurableObjectId {
-  toString (): string;
-}
+  type Query {
+    chatSession(id: ID!): ChatSession
+    heartbeat: String
+  }
 
-interface DurableObjectStub {
-  fetch (request: Request): Promise<Response>;
-}
+  type Mutation {
+    sendMessage(sessionId: ID!, content: String!): Message
+    sendAIMessage(sessionId: ID!, content: String!): Message
+  }
 
-interface DurableObjectState {
-  storage: {
-    get (key: string): Promise<any>;
-    put (key: string, value: any): Promise<void>;
-    delete (key: string): Promise<boolean>;
-  };
-}
+  type Subscription {
+    messageAdded(sessionId: ID!): Message
+  }
+`;
+
+/**
+ * 聊天会话Durable Object类
+ * 使用SQLite作为存储后端
+ */
 export class ChatSessionDO {
   state: DurableObjectState;
   env: Env;
-  ctx: ExecutionContext;
-  storage: Map<string, any> = new Map();
-  sessions: Map<string, any> = new Map();
-  webSockets: Map<string, WebSocket> = new Map();
+  webSockets: Map<string, WebSocket>;
   openai: any;
+  apolloHandler: any;
+  sessionId: string;
+  db: SqlStorage;
 
-  constructor(state: DurableObjectState, env: Env, ctx: ExecutionContext) {
+  constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
-    this.ctx = ctx;
-    this.openai = new OpenAI({
-      apiKey: env.OPENAI_API_KEY
-    });
+    this.webSockets = new Map();
+    this.sessionId = '';
+
+    // 获取SQLite数据库实例
+    this.db = state.storage.sql;
+
+    // 初始化OpenAI客户端(如果有API密钥)
+    if (env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({
+        apiKey: env.OPENAI_API_KEY
+      });
+    }
+
+    // 初始化数据库表
+    this.initDatabase();
   }
 
   /**
-   * 处理 HTTP 请求
+   * 初始化SQLite数据库表
+   */
+  async initDatabase () {
+    try {
+      // 创建会话表
+      await this.db.exec(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          last_active INTEGER
+        );
+      `);
+
+      // 创建消息表
+      await this.db.exec(`
+        CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY,
+          session_id TEXT,
+          content TEXT,
+          sender TEXT,
+          timestamp TEXT,
+          FOREIGN KEY(session_id) REFERENCES sessions(id)
+        );
+      `);
+    } catch (error) {
+      console.error('Error initializing database:', error);
+    }
+  }
+
+  /**
+   * 处理HTTP请求
    */
   async fetch (request: Request) {
+    // 从URL获取会话ID
     const url = new URL(request.url);
-    const path = url.pathname;
+    this.sessionId = url.searchParams.get('sessionId') || 'default';
 
-    // WebSocket 升级处理
+    // 确保会话存在
+    await this.ensureSessionExists();
+
+    // 处理WebSocket连接
     if (request.headers.get('Upgrade') === 'websocket') {
-      return this.handleWebSocketUpgrade(request);
+      return this.handleWebSocketRequest(request);
     }
 
-    // GraphQL 请求处理
-    if (path === '/graphql') {
+    // 处理GraphQL请求
+    if (url.pathname === '/graphql') {
       return this.handleGraphQLRequest(request);
     }
 
-    // 未知路径
+    // 其他路径返回404
     return new Response('Not found', { status: 404 });
   }
 
   /**
-   * 处理 WebSocket 升级请求
+   * 确保会话记录存在
    */
-  async handleWebSocketUpgrade (request: Request) {
-    // 创建 WebSocket 对
+  async ensureSessionExists () {
+    try {
+      // 查询会话是否存在
+      const session = await this.db.batch(
+        [{ sql: `SELECT id FROM sessions WHERE id = ?`, args: [this.sessionId] }],
+      );
+
+      if (!session) {
+        // 创建新会话
+        await this.db.batch(
+          [{ sql: `INSERT INTO sessions (id, last_active) VALUES (?, ?)`, args: [this.sessionId] }],
+        );
+      } else {
+        // 更新最后活动时间
+        await this.db.batch([{
+          sql: `UPDATE sessions SET last_active = ? WHERE id = ?`,
+          args: [Date.now(), this.sessionId]
+        }]);
+      }
+    } catch (error) {
+      console.error('Error ensuring session exists:', error);
+    }
+  }
+
+  /**
+   * 处理WebSocket连接请求
+   */
+  async handleWebSocketRequest (request: Request) {
+    // 创建WebSocket对
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
-    // 接受 WebSocket 连接
+
+    // 接受WebSocket连接
     server.accept();
 
-    // 从 URL 获取会话 ID
-    const url = new URL(request.url);
-    const sessionId = url.searchParams.get('sessionId') || 'default';
+    // 生成WebSocket ID
+    const webSocketId = uuidv4();
 
-    // 存储 WebSocket 连接
-    const wsId = uuidv4();
-    this.webSockets.set(wsId, server);
+    // 将WebSocket与会话关联
+    // @ts-ignore
+    server.sessionId = this.sessionId;
+    this.webSockets.set(webSocketId, server);
 
-    // 设置关闭处理程序
-    server.addEventListener('close', () => {
-      this.webSockets.delete(wsId);
-    });
-
-    // 设置消息处理程序
+    // 处理消息
     server.addEventListener('message', async (event) => {
       try {
-        // 解析客户端消息
         const message = JSON.parse(event.data);
 
-        // 处理订阅请求
-        if (message.type === 'subscribe') {
-          // 将此 WebSocket 与特定会话关联
-          // @ts-ignore
-          server.sessionId = sessionId;
+        // 处理订阅和其他GraphQL over WebSocket协议消息
+        if (message.type === 'connection_init') {
+          server.send(JSON.stringify({ type: 'connection_ack' }));
+        }
+        else if (message.type === 'subscribe' && message.id) {
+          console.log(`Client ${webSocketId} subscribed to session ${this.sessionId}`);
+        }
+        else if (message.type === 'complete' && message.id) {
+          console.log(`Client ${webSocketId} unsubscribed`);
         }
       } catch (error) {
-        console.error('WebSocket message handler error:', error);
+        console.error('Error handling WebSocket message:', error);
       }
     });
 
-    // 返回客户端 WebSocket
+    // 处理关闭事件
+    server.addEventListener('close', () => {
+      this.webSockets.delete(webSocketId);
+      console.log(`WebSocket ${webSocketId} closed`);
+    });
+
+    // 处理错误事件
+    server.addEventListener('error', (error) => {
+      console.error(`WebSocket ${webSocketId} error:`, error);
+      this.webSockets.delete(webSocketId);
+    });
+
+    // 返回客户端WebSocket
     return new Response(null, {
       status: 101,
       webSocket: client,
@@ -116,66 +212,51 @@ export class ChatSessionDO {
   }
 
   /**
-   * 处理 GraphQL 请求
+   * 处理GraphQL请求
    */
   async handleGraphQLRequest (request: Request) {
-    // 创建 GraphQL 解析器
-    const resolvers = this.createResolvers();
+    // 如果处理器尚未创建，则初始化它
+    if (!this.apolloHandler) {
+      // 创建Apollo Server
+      const server = new ApolloServer({
+        schema: makeExecutableSchema({
+          typeDefs,
+          resolvers: this.createResolvers(),
+        }),
+      });
 
-    // 创建 GraphQL schema
-    const schema = makeExecutableSchema({
-      typeDefs,
-      resolvers,
-    });
-
-    // 创建 Apollo 服务器
-    const server = new ApolloServer({
-      schema,
-    });
-
-    // 创建请求处理器
-    const handler = startServerAndCreateCloudflareWorkersHandler(server, {
-      context: async () => ({
-        env: this.env,
-        durableObject: this
-      }),
-    });
+      // 创建请求处理器
+      this.apolloHandler = startServerAndCreateCloudflareWorkersHandler(server, {
+        context: async () => ({ durableObject: this }),
+      });
+    }
 
     // 处理请求
-    return handler(request, this.env, this.ctx);
+    return this.apolloHandler(request);
   }
+
   /**
-   * 创建 GraphQL 解析器
+   * 创建GraphQL解析器
    */
   createResolvers () {
     return {
       Query: {
-        // @ts-ignore
-        chatSession: async (_, { id }) => {
-          // 从存储中获取会话
-          let session = await this.state.storage.get(`session:${id}`);
-
-          // 如果不存在则创建新会话
-          if (!session) {
-            session = {
-              id,
-              messages: []
-            };
-            await this.state.storage.put(`session:${id}`, session);
-          }
+        chatSession: async () => {
+          // 获取会话信息
+          const session = {
+            id: this.sessionId,
+            messages: await this.getSessionMessages()
+          };
 
           return session;
         },
 
-        heartbeat: () => {
-          return "ok";
-        }
+        heartbeat: () => "ok",
       },
 
       Mutation: {
         // @ts-ignore
         sendMessage: async (_, { sessionId, content }) => {
-          // 创建新消息
           const message = {
             id: uuidv4(),
             content,
@@ -183,25 +264,11 @@ export class ChatSessionDO {
             timestamp: new Date().toISOString()
           };
 
-          // 获取当前会话
-          let session = await this.state.storage.get(`session:${sessionId}`);
+          // 保存消息到数据库
+          await this.saveMessage(message);
 
-          // 如果不存在则创建新会话
-          if (!session) {
-            session = {
-              id: sessionId,
-              messages: [message]
-            };
-          } else {
-            // 添加消息到现有会话
-            session.messages.push(message);
-          }
-
-          // 保存会话
-          await this.state.storage.put(`session:${sessionId}`, session);
-
-          // 广播消息给所有相关 WebSocket
-          this.broadcastMessage(sessionId, {
+          // 广播消息给所有连接的客户端
+          this.broadcastMessage({
             type: 'next',
             payload: {
               data: {
@@ -214,14 +281,12 @@ export class ChatSessionDO {
         },
         // @ts-ignore
         sendAIMessage: async (_, { sessionId, content }) => {
-          // 获取当前会话
-          let session = await this.state.storage.get(`session:${sessionId}`);
-          const messages = session ? session.messages : [];
+          // 获取会话消息历史
+          const messages = await this.getSessionMessages();
 
-          // 调用 OpenAI API
+          // 获取AI回复
           const aiResponse = await this.getAICompletion(content, messages);
 
-          // 创建 AI 消息
           const message = {
             id: uuidv4(),
             content: aiResponse,
@@ -229,22 +294,11 @@ export class ChatSessionDO {
             timestamp: new Date().toISOString()
           };
 
-          // 如果不存在则创建新会话
-          if (!session) {
-            session = {
-              id: sessionId,
-              messages: [message]
-            };
-          } else {
-            // 添加消息到现有会话
-            session.messages.push(message);
-          }
+          // 保存消息到数据库
+          await this.saveMessage(message);
 
-          // 保存会话
-          await this.state.storage.put(`session:${sessionId}`, session);
-
-          // 广播消息给所有相关 WebSocket
-          this.broadcastMessage(sessionId, {
+          // 广播消息给所有连接的客户端
+          this.broadcastMessage({
             type: 'next',
             payload: {
               data: {
@@ -260,23 +314,83 @@ export class ChatSessionDO {
   }
 
   /**
-   * 向特定会话的所有 WebSocket 连接广播消息
+   * 获取会话的所有消息
    */
-  broadcastMessage (sessionId: string, message: any) {
-    for (const ws of this.webSockets.values()) {
-      // @ts-ignore
-      if (ws.sessionId === sessionId) {
-        ws.send(JSON.stringify(message));
+  async getSessionMessages () {
+    try {
+      // 查询此会话的所有消息
+      const result = await this.db.batch([{
+        sql: `SELECT id, content, sender, timestamp 
+         FROM messages 
+         WHERE session_id = ? 
+         ORDER BY timestamp ASC`,
+        args: [this.sessionId]
+      }]);
+      return result.results || [];
+    } catch (error) {
+      console.error('Error fetching session messages:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 保存消息到数据库
+   */
+  // @ts-ignore
+  async saveMessage (message) {
+    try {
+      // 插入消息记录 更新会话最后活动时间
+      await this.db.batch([{
+        sql: `INSERT INTO messages (id, session_id, content, sender, timestamp) 
+         VALUES (?, ?, ?, ?, ?)`,
+        args: [message.id, this.sessionId, message.content, message.sender, message.timestamp],
+      }, {
+        sql: `UPDATE sessions SET last_active = ? WHERE id = ?`,
+        args: [Date.now(), this.sessionId]
+      },]);
+      return true;
+    } catch (error) {
+      console.error('Error saving message:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 广播消息给所有连接的WebSocket
+   */
+  // @ts-ignore
+  broadcastMessage (message) {
+    const messageStr = JSON.stringify(message);
+
+    // 遍历所有WebSocket连接
+    for (const [id, ws] of this.webSockets.entries()) {
+      try {
+        // 只发送给与当前会话关联的WebSocket
+        // @ts-ignore
+        if (ws.sessionId === this.sessionId) {
+          ws.send(messageStr);
+        }
+      } catch (error) {
+        console.error(`Error sending message to WebSocket ${id}:`, error);
+        // 移除失败的WebSocket
+        this.webSockets.delete(id);
       }
     }
   }
 
   /**
-   * 调用 OpenAI API 获取回复
+   * 获取AI回复
    */
-  async getAICompletion (content: string, messages: any[]) {
+  // @ts-ignore
+  async getAICompletion (content, messages) {
+    // 如果未配置OpenAI，返回默认回复
+    if (!this.openai) {
+      return "AI服务未配置。请联系管理员设置OpenAI API密钥。";
+    }
+
     try {
       // 构建消息历史
+      // @ts-ignore
       const messageHistory = messages.map(msg => ({
         role: msg.sender === 'USER' ? 'user' : 'assistant',
         content: msg.content
@@ -288,7 +402,7 @@ export class ChatSessionDO {
         content
       });
 
-      // 调用 OpenAI API
+      // 调用OpenAI API
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4-0613',
         messages: messageHistory,
@@ -298,8 +412,52 @@ export class ChatSessionDO {
 
       return response.choices[0].message.content || '抱歉，我无法理解您的问题。';
     } catch (error) {
-      console.error('OpenAI API 错误:', error);
+      console.error('OpenAI API错误:', error);
       return '发生了一个错误，请稍后再试。';
     }
   }
+
+  /**
+   * 清理过期的会话数据
+   */
+  async cleanupOldSessions () {
+    try {
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+      // 查询过期会话
+      const result = await this.db.batch([{
+        sql: `SELECT id FROM sessions WHERE last_active < ?`,
+        ages: [thirtyDaysAgo]
+      }]);
+
+      const expiredSessions = result.results || [];
+      let cleanedCount = 0;
+
+      // 删除每个过期会话及其消息
+      for (const session of expiredSessions) {
+        await this.db.batch([{
+          sql: `DELETE FROM messages WHERE session_id = ?`,
+          args: [session.id]
+        }]);
+
+        await this.db.batch([{
+          sql: `DELETE FROM sessions WHERE id = ?`,
+          args: [session.id]
+        }]);
+
+        cleanedCount++;
+      }
+
+      return cleanedCount;
+    } catch (error) {
+      console.error('Error cleaning up old sessions:', error);
+      return 0;
+    }
+  }
+}
+
+// 环境类型定义
+export interface Env {
+  OPENAI_API_KEY: string;
+  CHAT_SESSIONS: DurableObjectNamespace;
 }
