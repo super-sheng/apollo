@@ -27,11 +27,9 @@ export default {
         sessionId = body.variables.id;
         console.log(`从GraphQL变量获取会话ID: ${sessionId}`);
       }
-      console.log('sessionId: ', sessionId);
 
       // 基于会话ID获取Durable Object ID
       const id = env.CHAT_SESSIONS.idFromName(sessionId);
-      console.log('id: ', id);
 
       // 获取Durable Object实例
       const stub = env.CHAT_SESSIONS.get(id);
