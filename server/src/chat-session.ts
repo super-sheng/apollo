@@ -54,6 +54,7 @@ export class ChatSessionDO extends DurableObject<Env> {
   db: SqlStorage;
 
   constructor(state: DurableObjectState, env: Env) {
+    console.log('env: ', env);
     super(state, env);
     this.state = state;
     this.env = env;
