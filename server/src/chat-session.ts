@@ -109,16 +109,14 @@ export class ChatSessionDO extends DurableObject<Env> {
   override async fetch (request: Request) {
     // 从URL获取会话ID
     const url = new URL(request.url);
-    let sessionId = 'default'
 
     const body = await request.clone().json();
     // @ts-ignore
     if (body?.variables?.id) {
       // @ts-ignore
       this.sessionId = body.variables.id;
-      console.log(`从GraphQL变量获取会话ID: ${sessionId}`);
+      console.log(`从GraphQL变量获取会话ID: ${this.sessionId}`);
     }
-    console.log('sessionId: ', sessionId);
 
     // 确保会话存在
     await this.ensureSessionExists();
