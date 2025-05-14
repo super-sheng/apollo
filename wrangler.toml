@@ -1,8 +1,8 @@
 name = "server-worker"
 main = "server/src/index.ts"
-compatibility_date = "2024-10-01"
+compatibility_date = "2023-05-01"
 workers_dev = true
-compatibility_flags = ["nodejs_compat", "durable_object_sql_preview"] 
+compatibility_flags = ["nodejs_compat", "durable_object_sql"] 
 
 # Durable Objects 声明
 [[durable_objects.bindings]]
