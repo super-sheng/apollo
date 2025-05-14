@@ -12,7 +12,7 @@
     "start": "node server/dist/index.js",
     "clean": "rimraf client/dist server/dist",
     "dev": "concurrently \"pnpm run dev:client\" \"wrangler dev\"",
-    "deploy": "wrangler publish"
+    "deploy": "wrangler deploy"
   },
   "keywords": [],
   "author": "",
