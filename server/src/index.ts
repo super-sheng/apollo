@@ -21,9 +21,11 @@ export default {
       console.log('url.searchParams.get.sessionId', url.searchParams.get('sessionId'));
       // 获取会话ID参数，如果没有则使用默认值
       const sessionId = url.searchParams.get('id') || getSessionIdFromRequest(request) || 'default';
+      console.log('sessionId: ', sessionId);
 
       // 基于会话ID获取Durable Object ID
       const id = env.CHAT_SESSIONS.idFromName(sessionId);
+      console.log('id: ', id);
 
       // 获取Durable Object实例
       const stub = env.CHAT_SESSIONS.get(id);
