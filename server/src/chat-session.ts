@@ -109,7 +109,7 @@ export class ChatSessionDO extends DurableObject<Env> {
   override async fetch (request: Request) {
     // 从URL获取会话ID
     const url = new URL(request.url);
-    this.sessionId = url.searchParams.get('sessionId') || 'default';
+    this.sessionId = url.searchParams.get('id') || 'default';
 
     // 确保会话存在
     await this.ensureSessionExists();
@@ -135,6 +135,7 @@ export class ChatSessionDO extends DurableObject<Env> {
     try {
       // 查询会话是否存在
       const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId);
+      console.log('session: ', session);
 
       if (!session) {
         // 创建新会话
