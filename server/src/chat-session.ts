@@ -64,11 +64,9 @@ export class ChatSessionDO extends DurableObject<Env> {
     this.db = state.storage.sql;
 
     // 初始化OpenAI客户端(如果有API密钥)
-    if (env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({
-        apiKey: env.OPENAI_API_KEY
-      });
-    }
+    this.openai = new OpenAI({
+      apiKey: env.OPENAI_API_KEY
+    });
 
     // 初始化数据库表
     this.initDatabase();
@@ -98,6 +96,7 @@ export class ChatSessionDO extends DurableObject<Env> {
           FOREIGN KEY(session_id) REFERENCES sessions(id)
         );
       `);
+      console.log("数据库表初始化完成");
     } catch (error) {
       console.error('Error initializing database:', error);
     }
@@ -109,13 +108,14 @@ export class ChatSessionDO extends DurableObject<Env> {
   override async fetch (request: Request) {
     // 从URL获取会话ID
     const url = new URL(request.url);
+    console.log('url: ', url);
 
     const body = await request.clone().json();
     // @ts-ignore
     if (body?.variables?.id) {
       // @ts-ignore
       this.sessionId = body.variables.id;
-      console.log(`从GraphQL变量获取会话ID: ${this.sessionId}`);
+      console.log(`chat-session： 从GraphQL变量获取会话ID: ${this.sessionId}`);
     }
 
     // 确保会话存在
@@ -140,6 +140,7 @@ export class ChatSessionDO extends DurableObject<Env> {
    */
   async ensureSessionExists () {
     try {
+      console.log('ensureSessionExists , this.sessionId: ', this.sessionId);
       // 查询会话是否存在
       const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId);
       console.log('session: ', JSON.stringify(session));
@@ -323,9 +324,10 @@ export class ChatSessionDO extends DurableObject<Env> {
     try {
       // 查询此会话的所有消息
       const result = await this.db.exec(`SELECT id, content, sender, timestamp 
-         FROM messages 
-         WHERE session_id = ? 
-         ORDER BY timestamp ASC`, this.sessionId);
+        FROM messages 
+        WHERE session_id = ? 
+        ORDER BY timestamp ASC`, this.sessionId);
+      console.log('result: ', result);
       return result.toArray() || [];
     } catch (error) {
       console.error('Error fetching session messages:', error);
