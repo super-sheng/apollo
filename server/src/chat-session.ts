@@ -263,7 +263,7 @@ export class ChatSessionDO extends DurableObject<Env> {
         // @ts-ignore
         sendMessage: async (_, { sessionId, content }) => {
           const message = {
-            id: uuidv4(),
+            id: sessionId,
             content,
             sender: 'USER',
             timestamp: new Date().toISOString()

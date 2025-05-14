@@ -30,7 +30,7 @@ export const resolvers = {
     // @ts-ignore
     sendMessage: (_, { sessionId, content }) => {
       const message = {
-        id: uuidv4(),
+        id: sessionId,
         content,
         sender: 'USER',
         timestamp: new Date().toISOString()
