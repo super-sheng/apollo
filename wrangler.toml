@@ -1,4 +1,4 @@
-name = "graphql-openai-worker"
+name = "server-worker"
 main = "server/src/index.ts"
 compatibility_date = "2025-05-01"
 workers_dev = true
