@@ -157,7 +157,7 @@ export class ChatSessionDO extends DurableObject<Env> {
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
 
     // 接受WebSocket连接
-    server.accept();
+    this.state.acceptWebSocket(server);
 
     // 生成WebSocket ID
     const webSocketId = uuidv4();
