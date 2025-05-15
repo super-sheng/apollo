@@ -143,11 +143,13 @@ export class ChatSessionDO extends DurableObject<Env> {
     try {
       console.log('ensureSessionExists , this.sessionId: ', this.sessionId);
       // 查询会话是否存在
-      const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId);
-      console.log('session.one(): ', session.one());
+      const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId).columnNames.toArray();
+      console.log('session 未序列化', session);
       console.log('session: ', JSON.stringify(session));
+      
+      
 
-      if (!session) {
+      if (!session.length) {
         // 创建新会话
         await this.db.exec(`INSERT INTO sessions (id, last_active) VALUES (?, ?)`, this.sessionId,  Date.now());
       } else {
