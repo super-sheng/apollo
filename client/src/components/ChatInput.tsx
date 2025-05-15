@@ -2,10 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import '../styles/ChatInput.scss';
 import SendButton from './SendButton';
 // @ts-ignore
-const ChatInput = ({ onSendMessage }) => {
+const ChatInput = ({ onSendMessage, isLoading }) => {
   const [message, setMessage] = useState('');
   const inputRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // 自动聚焦输入框

@@ -4,6 +4,7 @@ import { zhCN } from 'date-fns/locale';
 import '../styles/ChatMessage.scss';
 // @ts-ignore
 const ChatMessage = ({ message }) => {
+  console.log('message: ', message);
   const { content, sender, timestamp } = message;
   const isAI = sender === 'AI';
 

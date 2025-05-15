@@ -16,6 +16,13 @@ enabled = true
 [vars]
 OPENAI_API_KEY = ""
 
+# WebSocket 相关配置
+[websocket]
+enable = true
+max_retries = 5
+# 如果需要，设置更长的超时时间
+idle_timeout = 300
+
 # 添加定期清理任务的配置（可选）
 [triggers]
 crons = ["0 0 * * *"] # 每天凌晨执行一次清理
