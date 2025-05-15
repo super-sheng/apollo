@@ -149,7 +149,7 @@ export class ChatSessionDO extends DurableObject<Env> {
 
       if (!session) {
         // 创建新会话
-        await this.db.exec(`INSERT INTO sessions (id, last_active) VALUES (?, ?)`, this.sessionId);
+        await this.db.exec(`INSERT INTO sessions (id, last_active) VALUES (?, ?)`, this.sessionId,  Date.now());
       } else {
         // 更新最后活动时间
         await this.db.exec(`UPDATE sessions SET last_active = ? WHERE id = ?`, Date.now(), this.sessionId);
