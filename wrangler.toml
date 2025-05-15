@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]  # 添加Node.js兼容性标志
 # KV 命名空间绑定
 [[kv_namespaces]]
 binding = "CHAT_SESSIONS_KV"
-id = "您需要在Cloudflare控制台创建的KV命名空间ID"
+id = "20725fcb81744059ab77c255677e4b5c"
 
 [observability.logs]
 enabled = true
