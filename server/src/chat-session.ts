@@ -146,10 +146,8 @@ export class ChatSessionDO extends DurableObject<Env> {
       const session = await this.db.exec(`SELECT id FROM sessions WHERE id = ?`, this.sessionId);
       console.log('session 未序列化', session);
       console.log('session: ', JSON.stringify(session));
-      
-      
 
-      if (!session.length) {
+      if (Object.keys(session) === 0) {
         // 创建新会话
         await this.db.exec(`INSERT INTO sessions (id, last_active) VALUES (?, ?)`, this.sessionId,  Date.now());
       } else {
