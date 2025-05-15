@@ -1,4 +1,4 @@
-import { ChatSessionDO, Env } from './chat-session';
+import { ChatSessionService, Env } from './chat-session-kv';
 
 export default {
   async fetch (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -17,25 +17,12 @@ export default {
           headers: corsHeaders(),
         });
       }
-      // 获取会话ID参数，如果没有则使用默认值
-      let sessionId = 'default'
 
-      const body = await request.clone().json();
-      // @ts-ignore
-      if (body?.variables?.id) {
-        // @ts-ignore
-        sessionId = body.variables.id;
-        console.log(`从GraphQL变量获取会话ID: ${sessionId}`);
-      }
+      // 创建聊天会话服务实例
+      const chatService = new ChatSessionService(env);
 
-      // 基于会话ID获取Durable Object ID
-      const id = env.CHAT_SESSIONS.idFromName(sessionId);
-
-      // 获取Durable Object实例
-      const stub = env.CHAT_SESSIONS.get(id);
-
-      // 将请求转发到Durable Object
-      const response = await stub.fetch(request);
+      // 将请求转发到聊天服务
+      const response = await chatService.fetch(request);
 
       // 添加CORS头
       return addCorsHeaders(response);
@@ -58,26 +45,16 @@ export default {
         }
       );
     }
+  },
+
+  // 添加定期任务处理程序
+  async scheduled (event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    // 执行清理过期会话
+    const chatService = new ChatSessionService(env);
+    const cleanedCount = await chatService.cleanupOldSessions();
+    console.log(`Cleaned up ${cleanedCount} expired sessions`);
   }
 };
-
-/**
- * 从请求中提取会话ID
- */
-function getSessionIdFromRequest (request: Request): string | null {
-  try {
-    // 尝试从Authorization头中提取
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      return authHeader.slice(7); // 移除"Bearer "前缀
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error extracting session ID:', error);
-    return null;
-  }
-}
 
 /**
  * 处理CORS预检请求
@@ -123,6 +100,3 @@ function addCorsHeaders (response: Response): Response {
     headers: newHeaders
   });
 }
-
-// 导出Durable Object类
-export { ChatSessionDO };
