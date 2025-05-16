@@ -11,8 +11,7 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
 
   // 获取聊天会话
   const { data, loading, error, refetch } = useQuery(GET_CHAT_SESSION, {
-    variables: { id: sessionId },
-    fetchPolicy: 'network-only', // 强制从网络获取
+    variables: { sessionId },
   });
 
   console.log('Query state - loading:', loading, 'error:', error, 'data:', data);

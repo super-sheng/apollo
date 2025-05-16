@@ -72,24 +72,18 @@ export class ChatSessionService {
     const url = new URL(request.url);
     console.log('url: ', url);
 
-    try {
-      const body = await request.clone().json();
-      // @ts-ignore
-      if (body?.variables?.id) {
-        // @ts-ignore
-        this.sessionId = body.variables.id;
-        console.log(`chat-session： 从GraphQL变量获取会话ID: ${this.sessionId}`);
-      }
-    } catch (error) {
-      // 忽略非JSON请求的解析错误
-    }
+    const sessionId = url.searchParams.get('sessionId');
+
+    // @ts-ignore
+    this.sessionId = sessionId;
+    console.log(`chat-session： 从GraphQL变量获取会话ID: ${this.sessionId}`);
 
     // 确保会话存在
     await this.ensureSessionExists();
 
     // 处理WebSocket连接
     if (request.headers.get('Upgrade') === 'websocket') {
-      return this.handleWebSocketRequest(request);
+      return this.handleWebSocketRequest();
     }
 
     // 处理GraphQL请求
@@ -137,7 +131,7 @@ export class ChatSessionService {
   /**
    * 处理WebSocket连接请求
    */
-  async handleWebSocketRequest (request: Request) {
+  async handleWebSocketRequest () {
     // 创建WebSocket对
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
