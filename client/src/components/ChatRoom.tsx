@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
-import { GET_CHAT_SESSION, SEND_MESSAGE, SEND_AI_MESSAGE, MESSAGE_ADDED_SUBSCRIPTION } from '../graphql/queries';
+import React, { useRef, useEffect, useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_CHAT_SESSION, SEND_MESSAGE, SEND_AI_MESSAGE } from '../graphql/queries';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import Loader from './Loader';
@@ -8,39 +8,34 @@ import Loader from './Loader';
 const ChatRoom = ({ sessionId }: { sessionId: string }) => {
   console.log('ChatRoom rendering with sessionId:', sessionId);
   const messagesEndRef = useRef(null);
+  const [isAiResponding, setIsAiResponding] = useState(false);
 
   // 获取聊天会话
   const { data, loading, error, refetch } = useQuery(GET_CHAT_SESSION, {
     variables: { sessionId },
+    fetchPolicy: 'network-only', // 确保每次都从网络获取最新数据
   });
 
   console.log('Query state - loading:', loading, 'error:', error, 'data:', data);
 
-  // 订阅新消息
-  const { data: subscriptionData, error: subscriptionError } = useSubscription(
-    MESSAGE_ADDED_SUBSCRIPTION,
-    {
-      variables: { sessionId },
-      onData: ({ client, data }) => {
-        console.log('client: ', client);
-        console.log('Subscription received new data:', data);
-      }
-    }
-  );
-
-  console.log('Subscription state - data:', subscriptionData, 'error:', subscriptionError);
-
-  // 当收到新消息时刷新数据
-  useEffect(() => {
-    if (subscriptionData?.messageAdded) {
-      console.log('Received new message via subscription, refreshing data');
-      refetch();
-    }
-  }, [subscriptionData, refetch]);
-
   // 发送消息
   const [sendMessage, { loading: sendLoading, error: sendError }] = useMutation(SEND_MESSAGE);
   const [sendAIMessage, { loading: aiLoading, error: aiError }] = useMutation(SEND_AI_MESSAGE);
+
+  // 定期刷新聊天数据（可选，作为订阅的替代）
+  useEffect(() => {
+    // 初始加载
+    refetch();
+
+    // 如果你希望保持一定程度的"实时性"，可以启用这个定期刷新
+    // const intervalId = setInterval(() => {
+    //   if (!isAiResponding) { // 只在AI不在响应时进行刷新，避免冲突
+    //     refetch();
+    //   }
+    // }, 5000); // 每5秒刷新一次
+
+    // return () => clearInterval(intervalId);
+  }, [refetch, isAiResponding]);
 
   // 滚动到最新消息
   useEffect(() => {
@@ -52,22 +47,26 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
   }, [data]);
 
   // 处理发送消息
-  // @ts-ignore
-  const handleSendMessage = async (content) => {
+  const handleSendMessage = async (content: any) => {
     if (!content.trim()) return;
     console.log('Sending message:', content);
 
     try {
-      // 发送用户消息
-      const result = await sendMessage({
+      setIsAiResponding(true);
+
+      // 1. 发送用户消息
+      const userResult = await sendMessage({
         variables: {
           sessionId,
           content,
         },
       });
-      console.log('User message sent:', result);
+      console.log('User message sent:', userResult);
 
-      // 发送AI消息
+      // 立即刷新以显示用户消息
+      await refetch();
+
+      // 2. 发送AI消息请求
       const aiResult = await sendAIMessage({
         variables: {
           sessionId,
@@ -76,8 +75,14 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
       });
       console.log('AI response received:', aiResult);
 
+      // 再次刷新以显示AI回复
+      await refetch();
+
     } catch (error) {
       console.error('发送消息错误:', error);
+      alert('发送消息失败，请重试');
+    } finally {
+      setIsAiResponding(false);
     }
   };
 
@@ -92,7 +97,8 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
     console.error('Send error:', sendError || aiError);
   }
 
-  if (loading) return <Loader />;
+  // 使用加载指示器显示初始加载状态
+  if (loading && !data) return <Loader />;
 
   const messages = data?.chatSession?.messages || [];
   console.log('Rendering messages:', messages.length);
@@ -108,12 +114,16 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
             <ChatMessage key={msg.id} message={msg} />
           ))
         )}
+
+        {/* 添加"AI正在响应"的指示器 */}
+        {isAiResponding && <Loader />}
+
         <div ref={messagesEndRef} />
       </div>
 
       <ChatInput
         onSendMessage={handleSendMessage}
-        isLoading={sendLoading || aiLoading}
+        isLoading={sendLoading || aiLoading || isAiResponding}
       />
     </div>
   );
