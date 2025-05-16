@@ -114,7 +114,7 @@ export class ChatSessionService {
     }
 
     // 处理WebSocket连接
-    console.log('request: ', request);
+    console.log('request: ', JSON.stringify(request));
     if (request.headers.get('Upgrade') === 'websocket') {
       return this.handleWebSocketRequest(request);
     }
