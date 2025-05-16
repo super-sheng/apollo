@@ -74,10 +74,21 @@ export class ChatSessionService {
     const url = new URL(request.url);
     console.log('url: ', url);
 
-    const sessionId = url.searchParams.get('sessionId');
+    try {
+      const body = await request.clone().json();
 
+      // 仅在存在变量且之前没有设置 sessionId 时记录日志
+      // @ts-ignore
+      if (body?.variables?.sessionId && body.variables.sessionId !== this.sessionId) {
+        const oldSessionId = this.sessionId;
+        // @ts-ignore
+        this.sessionId = body.variables.sessionId;
+        console.log(`ChatService - sessionId 更新: ${oldSessionId || '无'} -> ${this.sessionId}`);
+      }
+    } catch (error) {
+      // 忽略非 JSON 请求的解析错误
+    }
     // @ts-ignore
-    this.sessionId = sessionId;
     console.log(`chat-session： 从GraphQL变量获取会话ID: ${this.sessionId}`);
 
     // 确保会话存在
@@ -224,7 +235,11 @@ export class ChatSessionService {
 
       // 创建请求处理器
       this.apolloHandler = startServerAndCreateCloudflareWorkersHandler(server, {
-        context: async () => ({ service: this }),
+        context: async () => ({
+          service: this,
+          sessionId: this.sessionId
+        }),
+
       });
     }
 
@@ -238,7 +253,10 @@ export class ChatSessionService {
   createResolvers () {
     return {
       Query: {
-        chatSession: async () => {
+        // @ts-ignore
+        chatSession: async (_, args, context) => {
+          console.log('context: ', context);
+          console.log('this: ', this);
           try {
             // 获取会话元数据
             const sessionKey = `session:${this.sessionId}:meta`;
