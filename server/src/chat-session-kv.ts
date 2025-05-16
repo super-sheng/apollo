@@ -80,12 +80,6 @@ export class ChatSessionService {
         this.sessionId = body.variables.id;
         console.log(`chat-session： 从GraphQL变量获取会话ID: ${this.sessionId}`);
       }
-    } catch (error) {
-      // 忽略非JSON请求的解析错误
-    }
-
-    // 确保会话存在
-    try {
       console.log('ensureSessionExists, this.sessionId: ', this.sessionId);
       if (!this.sessionId) return;
 
@@ -110,7 +104,7 @@ export class ChatSessionService {
         }));
       }
     } catch (error) {
-      console.error('Error ensuring session exists:', error);
+      // 忽略非JSON请求的解析错误
     }
 
     // 处理WebSocket连接

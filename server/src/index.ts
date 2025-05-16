@@ -3,6 +3,7 @@ import { ChatSessionService, Env } from './chat-session-kv';
 export default {
   async fetch (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
+      console.log('worker 入口: request: ', JSON.stringify(request));
       // 处理CORS预检请求
       if (request.method === 'OPTIONS') {
         return handleCorsPreflightRequest();
