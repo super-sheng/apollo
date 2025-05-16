@@ -80,35 +80,14 @@ export class ChatSessionService {
         this.sessionId = body.variables.id;
         console.log(`chat-session： 从GraphQL变量获取会话ID: ${this.sessionId}`);
       }
-      console.log('ensureSessionExists, this.sessionId: ', this.sessionId);
-      if (!this.sessionId) return;
-
-      // 会话元数据键
-      const sessionKey = `session:${this.sessionId}:meta`;
-
-      // 检查会话是否存在
-      const sessionData = await this.env.CHAT_SESSIONS_KV.get(sessionKey, { type: 'json' });
-
-      if (!sessionData) {
-        // 创建新会话
-        await this.env.CHAT_SESSIONS_KV.put(sessionKey, JSON.stringify({
-          id: this.sessionId,
-          last_active: Date.now(),
-          contextDescription: '通用对话'  // 默认上下文描述
-        }));
-      } else {
-        // 更新最后活动时间
-        await this.env.CHAT_SESSIONS_KV.put(sessionKey, JSON.stringify({
-          ...sessionData,
-          last_active: Date.now()
-        }));
-      }
     } catch (error) {
       // 忽略非JSON请求的解析错误
     }
 
+    // 确保会话存在
+    await this.ensureSessionExists();
+
     // 处理WebSocket连接
-    console.log('request: ', JSON.stringify(request));
     if (request.headers.get('Upgrade') === 'websocket') {
       return this.handleWebSocketRequest(request);
     }
@@ -128,7 +107,7 @@ export class ChatSessionService {
   async ensureSessionExists () {
     try {
       console.log('ensureSessionExists, this.sessionId: ', this.sessionId);
-      if (!this.sessionId) return;
+      // if (!this.sessionId) return;
 
       // 会话元数据键
       const sessionKey = `session:${this.sessionId}:meta`;
