@@ -22,8 +22,9 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
     MESSAGE_ADDED_SUBSCRIPTION,
     {
       variables: { sessionId },
-      onSubscriptionData: ({ subscriptionData }) => {
-        console.log('Subscription received new data:', subscriptionData);
+      onData: ({ client, data }) => {
+        console.log('client: ', client);
+        console.log('Subscription received new data:', data);
       }
     }
   );

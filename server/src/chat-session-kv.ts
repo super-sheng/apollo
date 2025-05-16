@@ -148,40 +148,60 @@ export class ChatSessionService {
     // 生成WebSocket ID
     const webSocketId = uuidv4();
 
+    console.log(`WebSocket ${webSocketId} 已连接，会话ID: ${this.sessionId}`);
+
     // 将WebSocket与会话关联
-    // @ts-ignore
-    server.sessionId = this.sessionId;
     this.webSockets.set(webSocketId, server);
 
     // 处理消息
     server.addEventListener('message', async (event) => {
       try {
         const message = JSON.parse(event.data);
+        console.log('message: ', message);
+        console.log(`WebSocket ${webSocketId} 收到消息:`, message.type);
 
         // 处理订阅和其他GraphQL over WebSocket协议消息
         if (message.type === 'connection_init') {
           server.send(JSON.stringify({ type: 'connection_ack' }));
+
+          // 发送保持活动消息，防止连接超时
+          const keepAliveInterval = setInterval(() => {
+            if (server.readyState === WebSocket.OPEN) {
+              server.send(JSON.stringify({ type: 'ka' })); // keep-alive
+            } else {
+              clearInterval(keepAliveInterval);
+            }
+          }, 30000); // 30秒发送一次
         }
         else if (message.type === 'subscribe' && message.id) {
-          console.log(`Client ${webSocketId} subscribed to session ${this.sessionId}`);
+          // 订阅消息处理
+          console.log(`Client ${webSocketId} 订阅会话 ${this.sessionId}`);
+
+          // 发送订阅确认
+          server.send(JSON.stringify({
+            type: 'next',
+            id: message.id,
+            payload: { data: { messageAdded: null } }
+          }));
+
         }
         else if (message.type === 'complete' && message.id) {
-          console.log(`Client ${webSocketId} unsubscribed`);
+          console.log(`Client ${webSocketId} 取消订阅`);
         }
       } catch (error) {
-        console.error('Error handling WebSocket message:', error);
+        console.error(`处理WebSocket消息错误:`, error);
       }
     });
 
     // 处理关闭事件
     server.addEventListener('close', () => {
       this.webSockets.delete(webSocketId);
-      console.log(`WebSocket ${webSocketId} closed`);
+      console.log(`WebSocket ${webSocketId} 已关闭`);
     });
 
     // 处理错误事件
     server.addEventListener('error', (error) => {
-      console.error(`WebSocket ${webSocketId} error:`, error);
+      console.error(`WebSocket ${webSocketId} 错误:`, error);
       this.webSockets.delete(webSocketId);
     });
 
