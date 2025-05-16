@@ -9,6 +9,7 @@ import { startServerAndCreateCloudflareWorkersHandler } from '@as-integrations/c
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
+import logRequestDetails from './utils/log-request';
 
 // GraphQL 类型定义
 const typeDefs = `#graphql
@@ -69,6 +70,7 @@ export class ChatSessionService {
    */
   async fetch (request: Request) {
     // 从URL获取会话ID
+    await logRequestDetails(request)
     const url = new URL(request.url);
     console.log('url: ', url);
 

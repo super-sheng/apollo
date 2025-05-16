@@ -1,9 +1,10 @@
 import { ChatSessionService, Env } from './chat-session-kv';
+import logRequestDetails from './utils/log-request';
 
 export default {
   async fetch (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
-      console.log('worker 入口: request: ', JSON.stringify(request));
+      await logRequestDetails(request)
       // 处理CORS预检请求
       if (request.method === 'OPTIONS') {
         return handleCorsPreflightRequest();
@@ -22,7 +23,6 @@ export default {
       // 创建聊天会话服务实例
       const chatService = new ChatSessionService(env);
 
-      console.log('worker: request: ', JSON.stringify(request));
       // 将请求转发到聊天服务
       const response = await chatService.fetch(request);
 

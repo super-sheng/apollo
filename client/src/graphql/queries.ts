@@ -2,8 +2,8 @@ import { gql } from '@apollo/client';
 
 // 获取聊天会话
 export const GET_CHAT_SESSION = gql`
-  query GetChatSession($id: ID!) {
-    chatSession(id: $id) {
+  query GetChatSession($sessionId: ID!) {
+    chatSession(id: $sessionId) {
       id
       messages {
         id
