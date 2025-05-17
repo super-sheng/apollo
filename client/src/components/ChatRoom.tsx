@@ -9,6 +9,7 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
   console.log('ChatRoom rendering with sessionId:', sessionId);
   const messagesEndRef = useRef(null);
   const [isAiResponding, setIsAiResponding] = useState(false);
+  const [latestAiMessageId, setLatestAiMessageId] = useState<string | null>(null);
 
   // 获取聊天会话
   const { data, loading, error, refetch } = useQuery(GET_CHAT_SESSION, {
@@ -111,7 +112,12 @@ const ChatRoom = ({ sessionId }: { sessionId: string }) => {
         ) : (
           // @ts-ignore
           messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              // 只对最新的AI消息应用打字机效果
+              showTypewriterEffect={msg.id === latestAiMessageId && msg.sender === 'AI'}
+            />
           ))
         )}
 
